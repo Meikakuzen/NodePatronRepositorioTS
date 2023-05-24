@@ -91,6 +91,7 @@ app.listen(3000, ()=>{
 
 - No debería dar ningún problema
 - Quiero mostrar un mensaje en el navegador en el puerto 3000, para ello uso app.get('/', (req,res)=> res.send('Running...))
+- 
 - Para que ts-node-dev escuche los cambios
 
 > "start": "ts-node-dev --respawn --transpile-only src/server.ts"
@@ -117,7 +118,7 @@ app.listen(3000, ()=>{
 
 ~~~js
 import express from 'express'
-import dotenv from 'dotenv
+import dotenv from 'dotenv'
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development'
 process.env.APP_ENV = process.env.APP_ENV || 'development'
@@ -134,9 +135,6 @@ app.get('/', (req,res)=>{
 - "moduleResolution": "node"
 - "target": "ESNext" 
 - "esModuleInterop": true 
-- Instalar ts-node y cambiar el script de start por:
-
->  "start":  "nodemon --exec ts-node src/server.ts --project ./tsconfig.json"
 
 ~~~js
 import express from 'express'
@@ -162,12 +160,12 @@ app.get('/', (req,res)=>{
 })
 ~~~
 
-- Ahora si hago un console.log(process.envAPP_FOO) me devuelve development
+- Ahora si hago un console.log(process.envAPP_FOO) me devuelve development (porque así lo definí en development.env)
 -----
 
 ## IOC Container
 
-- Patrón de inyección de depndencias
+- Patrón de inyección de dependencias
   - Se busca eliminar el acoplamiento entre clases
   - Por ejemplo lo que no debe hacer una clase es instanciar otra clase, eso sería un fuerte acoplamiento
     - Esto impide también el testing
@@ -177,7 +175,7 @@ app.get('/', (req,res)=>{
 - Creo mi primer servicio en /src/services/test.service.ts
 
 ~~~js
-export class testService{
+export class TestService{
 
     get(): Date{
         return new Date
@@ -258,9 +256,9 @@ export class DefaultController{
 - Permite trabajar el enrutamiento con decoradores
 - Habilito en el tsconfig experimental decorators y MetaData
 
->  "experimentalDecorators": true, "emitDecoratorMetadata": true,  
+> "experimentalDecorators": true, "emitDecoratorMetadata": true,  
 
-- Uso GET para indicar que es una petición GET
+- Uso el decorador GET para indicar que es una petición GET
 - Tipo el Request y la Response patra obtener el completado
 - Usaré el método index para que retorne en qué entorno está
 
@@ -304,12 +302,10 @@ export const app: express.Application = express()
 
 //para usar los controladores
 app.use(loadControllers(
-    'controllers/*.ts', 
-    {cwd: __dirname} //le indico en el objeto cual es la ruta donde debe empezar a buscar, es decirle /src
-))                   //dirname siempre retorna la carpeta actual
-
-                    //Le digo de que tipo es la propiedad y le paso el nombre de la propiedad del container
-const testService = container.resolve<TestService>('testService')
+    
+    'controllers/*.ts', //indico la ruta 
+    {cwd: __dirname} //le indico en un objeto cual es la ruta donde debe empezar a buscar
+))                   //dirname siempre retorna la carpeta actual, src/
 ~~~
 
 - Para que awilix-express funcione hay que presentar una dependencia al menos
@@ -361,15 +357,15 @@ dotenv.config({
 
 
 export const app: express.Application = express()
+    
+//con esto hago que las dependencias que vaya registrando estén disponibles
+loadContainer(app)
 
 //para usar los controladores
 app.use(loadControllers(
     'controllers/*.ts', 
     {cwd: __dirname} //le indico en el objeto cual es la ruta donde debe empezar a buscar, es decirle /src
 ))
-
-//con esto hago que las dependencias que vaya registrando estén disponibles
-loadContainer(app)
 ~~~
 
 - En el defaultController inyecto en el constructor la dependencia que me interesa
@@ -391,10 +387,12 @@ export class DefaultController{
             APP_ENV: process.env.APP_ENV
         })
     }
+
+
 }
 ~~~
 
-- Tengo que pasarle un parámetro en la creación del container, le indico que es de tipo CLASSIC
+- **NOTA:** Tengo que pasarle un parámetro en la creación del container **para usar las dependencias**, le indico que es de tipo CLASSIC
 
 ~~~js
 import express from 'express'
@@ -420,8 +418,8 @@ export default (app: express.Application)=>{
 }
 ~~~
 
-- Creo un nuevo método para comprobar que funciona
-
+- Ahora puedo crear el método test inyectándole testService usando su método get que me devuelve una fecha
+- No uso el slash en la ruta porque es la ruta principal y da **ERROR**. En el resto de rutas de otras clases **SI** uso el slash, es solo para el ejemplo
 ~~~js
 import {route, GET} from 'awilix-express'
 import { Request, Response } from 'express'
@@ -449,37 +447,7 @@ export class DefaultController{
 }
 ~~~
 
-- Ahora debo cargar el container en app.ts. debo hacero antes de usar los controladores
-
-~~~js
-import express from 'express'
-import dotenv from 'dotenv'
-import path from 'path'
-import loadContainer  from './container'
-import { loadControllers } from 'awilix-express'
-
-process.env.NODE_ENV = process.env.NODE_ENV || 'development'
-process.env.APP_ENV = process.env.APP_ENV || 'development'
-
-dotenv.config({
-    path: `${__dirname}/../config/${process.env.APP_ENV}.env`
-})
-
-
-
-export const app: express.Application = express()
-
-//debo cargar el container antes de usar los controladores
-loadContainer(app)
-
-//para usar los controladores
-app.use(loadControllers(
-    'controllers/*.ts', 
-    {cwd: __dirname} //le indico en el objeto cual es la ruta donde debe empezar a buscar, es decirle /src
-))
-~~~
-
-- Creo un nuevo controlador en la ruta /check con este mismo código, en el default.controller dejo solo un mensaje
+- Creo un nuevo controlador en la ruta /check con este mismo código, en el default.controller dejo solo un mensaje de 'Running'
 - default.controller.ts
 
 ~~~js
