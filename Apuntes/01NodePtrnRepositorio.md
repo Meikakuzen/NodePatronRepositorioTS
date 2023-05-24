@@ -83,7 +83,7 @@ app.listen(3000, ()=>{
 
 - **NOTA**: para desarrollo puedo usar nodemon-ts
 
->  "start": "nodemon-ts src/server.ts" //OPCIONAL
+>  "start": "nodemon --exec ts-node src/server.ts --project ./tsconfig.json" //OPCIONAL
 
 - Escribo en el script
 
@@ -240,4 +240,294 @@ console.log(testService.get())
 
 ## Controladores y enrutamiento
 
-- 
+- Los controladores son los encargados de interceptar los requests y atender a los responses
+- Encargados de definir el enrutamiento, implementan acciones
+- Por ejemplo para usuarios lo llamaré UserController, que va a ser una clase
+- Otro ejemplo sería ProductoController para producto
+- Creo un controlador de prueba default.controller.ts
+
+~~~js
+export class DefaultController{
+    public index(){
+        
+    }
+}
+~~~
+
+- Instalo awilix-express con npm
+- Permite trabajar el enrutamiento con decoradores
+- Habilito en el tsconfig experimental decorators y MetaData
+
+>  "experimentalDecorators": true, "emitDecoratorMetadata": true,  
+
+- Uso GET para indicar que es una petición GET
+- Tipo el Request y la Response patra obtener el completado
+- Usaré el método index para que retorne en qué entorno está
+
+~~~js
+import {route, GET} from 'awilix-express'
+import { Request, Response } from 'express'
+
+@route('/')
+export class DefaultController{
+    
+    @GET()
+    public index(req: Request, res:Response): void{
+        res.send({
+            NODE_ENV: process.env.NODE_ENV,
+            APP_ENV: process.env.APP_ENV
+        })
+    }
+}
+~~~
+
+- En app.ts importo loadController de awilix-express
+
+~~~js
+import express from 'express'
+import dotenv from 'dotenv'
+import path from 'path'
+import { container } from './container'
+import { TestService } from './services/test.service'
+import { loadControllers } from 'awilix-express/lib/controller'
+
+process.env.NODE_ENV = process.env.NODE_ENV || 'development'
+process.env.APP_ENV = process.env.APP_ENV || 'development'
+
+dotenv.config({
+    path: `${__dirname}/../config/${process.env.APP_ENV}.env`
+})
+
+
+
+export const app: express.Application = express()
+
+//para usar los controladores
+app.use(loadControllers(
+    'controllers/*.ts', 
+    {cwd: __dirname} //le indico en el objeto cual es la ruta donde debe empezar a buscar, es decirle /src
+))                   //dirname siempre retorna la carpeta actual
+
+                    //Le digo de que tipo es la propiedad y le paso el nombre de la propiedad del container
+const testService = container.resolve<TestService>('testService')
+~~~
+
+- Para que awilix-express funcione hay que presentar una dependencia al menos
+- Hago un refactor en container.ts y hago que el export default retorne una función
+- importo expres
+- Meto el código dentro de la función
+- Debo indicarle a express el contenedor
+
+~~~js
+import express from 'express'
+import { TestService } from "./services/test.service";
+import {createContainer, asClass} from 'awilix'
+import { scopePerRequest } from 'awilix-express/lib/scope-per-request';
+
+
+export default (app: express.Application)=>{
+    
+    const container = createContainer()
+    
+    //aquí registro mis dependencias. Uso asClass para indicarle que es una clase. Uso .scoped() al final
+    container.register({
+        testService: asClass(TestService).scoped()
+    })
+
+    //Asocio el contenedro a express
+    app.use(scopePerRequest(container))
+
+}
+~~~
+
+- Voy a app.ts y lo importo, puedo llamarlo como quiera, lo llamo loadContainer
+- Ejecuto la función con la instancia de app
+
+~~~js
+import express from 'express'
+import dotenv from 'dotenv'
+import path from 'path'
+import loadContainer  from './container'
+import { TestService } from './services/test.service'
+import { loadControllers } from 'awilix-express/lib/controller'
+
+process.env.NODE_ENV = process.env.NODE_ENV || 'development'
+process.env.APP_ENV = process.env.APP_ENV || 'development'
+
+dotenv.config({
+    path: `${__dirname}/../config/${process.env.APP_ENV}.env`
+})
+
+
+
+export const app: express.Application = express()
+
+//para usar los controladores
+app.use(loadControllers(
+    'controllers/*.ts', 
+    {cwd: __dirname} //le indico en el objeto cual es la ruta donde debe empezar a buscar, es decirle /src
+))
+
+//con esto hago que las dependencias que vaya registrando estén disponibles
+loadContainer(app)
+~~~
+
+- En el defaultController inyecto en el constructor la dependencia que me interesa
+
+~~~js
+import {route, GET} from 'awilix-express'
+import { Request, Response } from 'express'
+import { TestService } from '../services/test.service'
+
+@route('/')
+export class DefaultController{
+    constructor(private readonly testService: TestService){
+
+    }
+    @GET()
+    public index(req: Request, res:Response): void{
+        res.send({
+            NODE_ENV: process.env.NODE_ENV,
+            APP_ENV: process.env.APP_ENV
+        })
+    }
+}
+~~~
+
+- Tengo que pasarle un parámetro en la creación del container, le indico que es de tipo CLASSIC
+
+~~~js
+import express from 'express'
+import { TestService } from "./services/test.service";
+import {createContainer, asClass} from 'awilix'
+import { scopePerRequest } from 'awilix-express/lib/scope-per-request';
+
+
+export default (app: express.Application)=>{
+    
+    const container = createContainer({
+        injectionMode: 'CLASSIC'
+    })
+    
+    //aquí registro mis dependencias. Uso asClass para indicarle que es una clase. Uso .scoped() al final
+    container.register({
+        testService: asClass(TestService).scoped()
+    })
+
+    //Asocio el contenedro a express
+    app.use(scopePerRequest(container))
+
+}
+~~~
+
+- Creo un nuevo método para comprobar que funciona
+
+~~~js
+import {route, GET} from 'awilix-express'
+import { Request, Response } from 'express'
+import { TestService } from '../services/test.service'
+
+@route('/')
+export class DefaultController{
+    constructor(private readonly testService: TestService){
+
+    }
+    @GET()
+    public index(req: Request, res:Response): void{
+        res.send({
+            NODE_ENV: process.env.NODE_ENV,
+            APP_ENV: process.env.APP_ENV
+        })
+    }
+    @route('test') //lo coloco sin el slash, solo para el ejemplo, NO TIENE SENTIDO OTRO GET EN LA RUTA PRINCIPAL
+    @GET()
+    public test(req: Request, res:Response): void{ 
+        res.send(
+            this.testService.get()
+        )
+    }
+}
+~~~
+
+- Ahora debo cargar el container en app.ts. debo hacero antes de usar los controladores
+
+~~~js
+import express from 'express'
+import dotenv from 'dotenv'
+import path from 'path'
+import loadContainer  from './container'
+import { loadControllers } from 'awilix-express'
+
+process.env.NODE_ENV = process.env.NODE_ENV || 'development'
+process.env.APP_ENV = process.env.APP_ENV || 'development'
+
+dotenv.config({
+    path: `${__dirname}/../config/${process.env.APP_ENV}.env`
+})
+
+
+
+export const app: express.Application = express()
+
+//debo cargar el container antes de usar los controladores
+loadContainer(app)
+
+//para usar los controladores
+app.use(loadControllers(
+    'controllers/*.ts', 
+    {cwd: __dirname} //le indico en el objeto cual es la ruta donde debe empezar a buscar, es decirle /src
+))
+~~~
+
+- Creo un nuevo controlador en la ruta /check con este mismo código, en el default.controller dejo solo un mensaje
+- default.controller.ts
+
+~~~js
+import {route, GET} from 'awilix-express'
+import { Request, Response } from 'express'
+import { TestService } from '../services/test.service'
+
+@route('/')
+export class DefaultController{
+    constructor(private readonly testService: TestService){
+
+    }
+    @GET()
+    public index(req: Request, res:Response): void{
+        res.send('Running...')
+    }
+}
+~~~
+
+- check.controller.ts
+
+~~~js
+import {route, GET} from 'awilix-express'
+import { Request, Response } from 'express'
+import { TestService } from '../services/test.service'
+
+@route('/check')
+export class CheckController{
+    constructor(private readonly testService: TestService){
+
+    }
+    @GET()
+    public index(req: Request, res:Response): void{
+        res.send({
+            NODE_ENV: process.env.NODE_ENV,
+            APP_ENV: process.env.APP_ENV
+        })
+    }
+
+    @route('/test')
+    @GET()
+    public test(req: Request, res:Response): void{
+        res.send(this.testService.get())
+    }
+
+}
+~~~
+
+                   
+
+
