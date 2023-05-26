@@ -345,7 +345,7 @@ import dotenv from 'dotenv'
 import path from 'path'
 import loadContainer  from './container'
 import { TestService } from './services/test.service'
-import { loadControllers } from 'awilix-express/lib/controller'
+import { loadControllers } from 'awilix-express'
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development'
 process.env.APP_ENV = process.env.APP_ENV || 'development'
@@ -398,7 +398,7 @@ export class DefaultController{
 import express from 'express'
 import { TestService } from "./services/test.service";
 import {createContainer, asClass} from 'awilix'
-import { scopePerRequest } from 'awilix-express/lib/scope-per-request';
+import { scopePerRequest } from 'awilix-express';
 
 
 export default (app: express.Application)=>{
