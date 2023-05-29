@@ -156,3 +156,688 @@ export class SubscriptionRepository{
 
 ## Repositorio - métodos de escritura
 
+- Escribo los querys y le paso en un arreglo (en el mismo orden) las propiedades
+- Uso la fecha para pasarle en la posición del arreglo de created_at una fecha
+- En update, le paso la fecha, y el siguiente parámetro en el array corresponde al id
+- En delete solo necesito el id
+
+~~~js
+import connector from '../../../../common/persistence/mysql.persistence'
+import { Subscription } from '../../domain/subscription'
+
+
+export class SubscriptionRepository{
+
+    public async all(): Promise<Subscription[]>{
+        const [rows] = await connector.execute(
+            'SELECT FROM wallet_subscription ORDER BY id DESC' 
+        )
+
+        return rows as Subscription[]
+    }
+    public async find(id: Number): Promise<Subscription | null>{
+        const [rows]: any[] = await connector.execute(
+            'SELECT FROM wallet_subscription WHERE id = ?', //pongo interrogación para evitar inyección de SQL
+            
+            //va a traer un array igual, pero debería devolver una sola fila
+            [id]
+        )
+            if(rows.length){
+                return rows[0] as Subscription
+            }
+            
+            return null
+    }
+
+    public async store(entry : Subscription): Promise<void>{
+        //creo la fecha para created_at
+        const now = new Date();
+
+            await connector.execute(
+                'INSERT INTO wallet_subscription(user_id, code, amount, cron, created_at) VALUES(?,?,?,?,?)',
+                //escapo los parámetros
+                [entry.user_id, entry.code, entry.amount, entry.cron, now]  
+            )
+    }
+    
+    public async update(entry : Subscription): Promise<void>{
+
+        const now = new Date();
+
+            await connector.execute(                                                //le paso el now al updated_at
+                'UPDATE wallet_subscription SET user_id= ?, code= ?, amount= ?, cron=?, updated_at= ? WHERE id = ?',
+                //escapo los parámetros                                     
+                [entry.user_id, entry.code, entry.amount, entry.cron, now, entry.id] //este entry.id hace referencia al id del WHERE de la consulta 
+            )
+    }
+    
+    public async remove(id: number): Promise<void>{
+
+        await connector.execute(
+            'DELETE FROM wallet_subscription WHERE id= ?',
+            //le paso el id
+            [id]
+        )
+ 
+    }
+} 
+~~~
+------
+
+## Repositorio - Interfaces e inyección de dependencias
+
+- Voy a comenzar a trabajar con intyerfaces para que lo implementen mis repositorios
+- Las interfaces me van a ayudar a si tengo que cambiar de DB, el contrato ya está definido
+- Renombro la clase SubscriptionRepository a SubscriptionMySQLRepository
+- Creo a nivel de carpeta dentro de repositories el archivo subscription.repository.ts
+- /repositories/subscription.repository.ts
+
+~~~js
+import { Subscription } from "./domain/subscription"
+
+
+export interface SubscriptionRepository{
+    all: ()=> Promise<Subscription[]>
+    find: (id: number)=> Promise<Subscription | null>
+    store: (entry: Subscription)=> Promise<void>
+    update: (id: number, entry: Subscription)=> Promise<void>
+    remove: (id: number)=>Promise<void>
+}
+~~~
+
+- Le digo a la clase SubscriptionMySQLRepository que implemente la interfaz
+
+~~~js
+import connector from '../../../../common/persistence/mysql.persistence'
+import { Subscription } from '../../domain/subscription'
+import { SubscriptionRepository } from '../../subscription.repository'
+
+                                        //implemento la interfaz
+export class SubscriptionMySQLRepository implements SubscriptionRepository {
+
+    public async all(): Promise<Subscription[]>{
+        const [rows] = await connector.execute(
+            'SELECT FROM wallet_subscription ORDER BY id DESC' 
+        )
+
+        return rows as Subscription[]
+    }
+    public async find(id: Number): Promise<Subscription | null>{
+        const [rows]: any[] = await connector.execute(
+            'SELECT FROM wallet_subscription WHERE id = ?', //pongo interrogación para evitar inyección de SQL
+            
+            //va a traer un array igual, pero debería devolver una sola fila
+            [id]//le paso el id
+        )
+            if(rows.length){
+                return rows[0] as Subscription
+            }
+            
+            return null
+    }
+
+    public async store(entry : Subscription): Promise<void>{
+        //creo la fecha para created_at
+        const now = new Date();
+
+            await connector.execute(
+                'INSERT INTO wallet_subscription(user_id, code, amount, cron, created_at) VALUES(?,?,?,?,?)',
+                //escapo los parámetros
+                [entry.user_id, entry.code, entry.amount, entry.cron, now]  
+            )
+    }
+    
+    public async update(entry : Subscription): Promise<void>{
+
+        const now = new Date();
+
+            await connector.execute(                                                //le paso el now al updated_at
+                'UPDATE wallet_subscription SET user_id= ?, code= ?, amount= ?, cron=?, updated_at= ? WHERE id = ?',
+                //escapo los parámetros                                     
+                [entry.user_id, entry.code, entry.amount, entry.cron, now, entry.id] //este entry.id hace referencia al id del WHERE  
+            )
+    }
+    
+    public async remove(id: number): Promise<void>{
+
+        await connector.execute(
+            'DELETE FROM wallet_subscription WHERE id= ?',
+            //le paso el id
+            [id]
+        )
+ 
+    }
+}
+~~~
+
+- Ahora lo que hay que hacer es registrar esta clase ene l contenedor de dependencias
+- container.ts
+
+~~~js
+import express from 'express'
+import { TestService } from "./services/test.service";
+import {createContainer, asClass} from 'awilix'
+import { scopePerRequest } from 'awilix-express';
+import { SubscriptionMySQLRepository } from './services/repositories/impl/mysql/subscription.repository';
+
+
+export default (app: express.Application)=>{
+    
+    const container = createContainer({
+        injectionMode: 'CLASSIC'
+    })
+    
+    //aquí registro mis dependencias. Uso asClass para indicarle que es una clase. Uso .scoped() al final
+    container.register({
+        //repositories
+        subscriptionRepository: asClass(SubscriptionMySQLRepository).scoped(),
+
+        //services
+        testService: asClass(TestService).scoped()
+    })
+
+    //Asocio el contenedor a express
+    app.use(scopePerRequest(container))
+
+}
+~~~
+
+- Esta dependencia ya va a estar disponible para inyectarse en los constructores
+-----
+
+## Capa de servicio
+
+- En /services/subscription.service.ts
+- Par el store y el update voy a crear DTOs
+- services/subscription.service.ts
+
+~~~js
+import { Subscription } from "./repositories/domain/subscription";
+import { SubscriptionRepository } from "./repositories/subscription.repository";
+
+
+
+export class SubscriptionService{
+    constructor(
+        private readonly subscriptionRepository: SubscriptionRepository
+    ){}
+        public async all(): Promise<Subscription[]>{
+        return await this.subscriptionRepository.all()
+        }
+
+        public async find(id: number): Promise<Subscription | null>{
+            return await this.subscriptionRepository.find(id)
+        }
+
+        public async store(): Promise<void>{
+           
+        }
+        
+        public async update(): Promise<void>{
+           
+        }
+        
+        public async remove(id: number): Promise<void>{
+            return await this.subscriptionRepository.remove(id)
+        }
+}
+~~~
+
+- Creo los DTOs en /src/dtos/subscription.dtos.ts
+- El id, created_at y updated_at no me interesan
+
+~~~js
+export interface SubscriptionCreateDto{
+    code: string
+    user_id: number
+    amount: number
+    cron: string
+}
+
+export interface SubscriptionUpdateDto{
+    code: string
+    //según las reglas de negocio que aplico el user_id no lo necesito en update
+    amount: number
+    cron: string
+}
+~~~
+- Le paso el tipo SubscriptionCreateDto al argumento del método store
+- En el store tengo que verificar si el usuario existe primero.
+- Para ello creo un nuevo método en /repositories/impl/mysql/subscription.repository.ts
+
+~~~js
+    public async findByUserAndCode(user_id: Number, code: string): Promise<Subscription | null>{
+        const [rows]: any[] = await connector.execute(
+            'SELECT FROM wallet_subscription WHERE id = ? AND code= ?', //pongo interrogación para evitar inyección de SQL, añado code
+            
+            
+            [user_id, code]
+        )
+            if(rows.length){
+                return rows[0] as Subscription
+            }
+            
+            return null
+    }
+~~~
+
+- Debo añadir este método a la interfaz
+
+~~~js
+import { Subscription } from "./domain/subscription"
+
+export interface SubscriptionRepository{
+    all: ()=> Promise<Subscription[]>
+    find: (id: number)=> Promise<Subscription | null>
+    findByUserAndCode: (id: number, code: string)=> Promise<Subscription | null>
+    store: (entry: Subscription)=> Promise<void>
+    update: (entry: Subscription)=> Promise<void>
+    remove: (id: number)=>Promise<void>
+}
+~~~
+
+- Ahora ya puedo usarlo en subscription.service.ts
+
+~~~js
+import { SubscriptionCreateDto } from "../dtos/subscription.dtos";
+import { Subscription } from "./repositories/domain/subscription";
+import { SubscriptionRepository } from "./repositories/subscription.repository";
+
+
+
+export class SubscriptionService{
+    constructor(
+        private readonly subscriptionRepository: SubscriptionRepository
+    ){}
+        public async all(): Promise<Subscription[]>{
+        return await this.subscriptionRepository.all()
+        }
+
+        public async find(id: number): Promise<Subscription | null>{
+            return await this.subscriptionRepository.find(id)
+        }
+
+        public async store(entry: SubscriptionCreateDto): Promise<void>{
+           //el user_id y el code son únicos, me sirven para vaidar si existe
+           //uso el método que he creado en subscription.repository
+
+           const originalEntry = await this.subscriptionRepository.findByUserAndCode(entry.user_id, entry.code)
+
+           if(!originalEntry){
+           await this.subscriptionRepository.store(entry as Subscription) //lo transformo al tipo Subscription
+           }else{
+                //retorno un error
+           }
+
+        }
+        
+        public async update(): Promise<void>{
+           
+        }
+        
+        public async remove(id: number): Promise<void>{
+            return await this.subscriptionRepository.remove(id)
+        }
+}
+~~~
+
+- Quiero devolver un error personalizado
+- en /src/common/exception/application.exception.ts creo la clase ApplicationException
+- Le digo que herede de Error
+
+~~~js
+export class ApplicationException extends Error{
+    constructor(message: string = 'An unexpected error ocurred'){
+        super(message)
+    }
+}
+~~~
+
+- Puedo lanzar el error en el else del método store del servicio
+- Hago el update
+
+~~~js
+public async store(entry: SubscriptionCreateDto): Promise<void>{
+    //el user_id y el code son únicos, me sirven para vaidar si existe
+    //uso el método que he creado en subscription.repository
+
+    const originalEntry = await this.subscriptionRepository.findByUserAndCode(entry.user_id, entry.code)
+
+    if(!originalEntry){
+    await this.subscriptionRepository.store(entry as Subscription) //lo transformo al tipo Subscription
+    }else{
+        throw new ApplicationException("User subscription already exists")
+    }
+
+}
+
+public async update(id: number, entry: SubscriptionUpdateDto): Promise<void>{
+    const originalEntry = await this.subscriptionRepository.find(id)
+
+    if(originalEntry){
+        //actualizo los valores
+        originalEntry.code = entry.code,
+        originalEntry.amount = entry.amount,
+        originalEntry.cron= entry.cron
+
+        //guardo en la DB
+        await this.subscriptionRepository.update(originalEntry)
+    }else{
+        throw new ApplicationException("Subscription not found")
+    }
+
+}
+~~~
+----
+
+## Controlador y definición de rutas
+
+- Ahora vamos a registrar el servicio creado en el contenedor de dependencias 
+
+~~~js
+import express from 'express'
+import { TestService } from "./services/test.service";
+import {createContainer, asClass} from 'awilix'
+import { scopePerRequest } from 'awilix-express';
+import { SubscriptionMySQLRepository } from './services/repositories/impl/mysql/subscription.repository';
+import { SubscriptionService } from './services/subscription.service';
+
+
+export default (app: express.Application)=>{
+    
+    const container = createContainer({
+        injectionMode: 'CLASSIC'
+    })
+    
+    //aquí registro mis dependencias. Uso asClass para indicarle que es una clase. Uso .scoped() al final
+    container.register({
+        //repositories
+        subscriptionRepository: asClass(SubscriptionMySQLRepository).scoped(),
+
+        //services
+        testService: asClass(TestService).scoped(),
+        subscriptionService: asClass(SubscriptionService).scoped() 
+    })
+
+    //Asocio el contenedor a express
+    app.use(scopePerRequest(container))
+
+}
+~~~
+
+- En los servicios no necesito interfaz porque lo único que van a cambiar son los repositorios
+- Ahora que ya tengo mapeada la dependencia creo el controlador en /src/controllers/subscription.controller.ts
+- Le inyecto el servicio en el constructor como dependencia
+- Debo escribir la palabra private para disponer de ello dentro de la clase. Readonly lo protege
+- Uso los decoradores de awilix-express
+~~~js
+import { Request, Response } from "express";
+import { route, GET } from "awilix-express";
+import { SubscriptionService } from "../services/subscription.service";
+
+
+@route('/subscription')
+export class SubscriptionController{
+    //inyecto como dependencia el servicio
+    constructor(private readonly subscriptionService:SubscriptionService){}
+
+    @GET()
+    public async all(req:Request, res: Response) {
+        res.send(
+
+            await this.subscriptionService.all()
+        )
+    }
+}
+~~~
+
+- Para el find extraigo el id del req.params
+- Lo casteo a number porque viene como string
+
+~~~js
+import { Request, Response } from "express";
+import { route, GET } from "awilix-express";
+import { SubscriptionService } from "../services/subscription.service";
+
+
+@route('/subscriptions')
+export class SubscriptionController{
+    //inyecto como dependencia el servicio
+    constructor(private readonly subscriptionService:SubscriptionService){}
+
+    @GET()
+    public async all(req:Request, res: Response) {
+
+        res.send(
+            
+            await this.subscriptionService.all()
+        )
+    }
+
+    @route(':id')
+    @GET()
+    public async find(req: Request, res: Response){
+        const id = req.params.id
+        res.send(
+            
+            await this.subscriptionService.find(+id)
+        )
+    }
+}
+~~~
+
+- Creo el método POST
+
+~~~js
+    @POST()
+    public async store(req: Request, res: Response){
+    
+        await this.subscriptionService.store({
+            user_id: req.body.user_id, //tengo la info en el body de la request
+            code: req.body.code,
+            amount: req.body.amount,
+            cron: req.body.cron
+        } as SubscriptionCreateDto) //tiene que responder al DTO
+        
+        res.send() //status 200
+    }
+~~~
+
+- Creo el método PUT y DELETE.
+- El controlador queda así
+
+~~~js
+import { Request, Response } from "express";
+import { route, GET, POST, PUT, DELETE } from "awilix-express";
+import { SubscriptionService } from "../services/subscription.service";
+import { SubscriptionCreateDto, SubscriptionUpdateDto } from "../dtos/subscription.dtos";
+
+
+@route('/subscriptions')
+export class SubscriptionController{
+    //inyecto como dependencia el servicio
+    constructor(private readonly subscriptionService:SubscriptionService){}
+
+    @GET()
+    public async all(req:Request, res: Response) {
+
+        res.send(
+
+            await this.subscriptionService.all()
+        )
+    }
+
+    @route(':id')
+    @GET()
+    public async find(req: Request, res: Response){
+        const id = req.params.id
+        res.send(
+
+            await this.subscriptionService.find(+id)
+        )
+    }
+
+    @POST()
+    public async store(req: Request, res: Response){
+    
+        await this.subscriptionService.store({
+            user_id: req.body.user_id,
+            code: req.body.code,
+            amount: req.body.amount,
+            cron: req.body.cron
+        } as SubscriptionCreateDto)
+
+        res.send() //status 200
+    }
+
+    @route(':id')
+    @PUT()
+    public async update(req: Request, res: Response){
+        const id = req.params.id
+
+        await this.subscriptionService.update(+id, {
+            code: req.body.code,
+            amount: req.body.amount,
+            cron: req.body.cron
+        } as SubscriptionUpdateDto)
+
+    }
+
+    @route(':id')
+    @DELETE()
+    public async remove(req: Request, res: Response){
+
+        const id= req.params.id
+
+        await this.subscriptionService.remove(+id)
+    }
+}
+~~~
+------
+
+## Trabajando con excepciones y testeando
+
+- Hay que mejorar el código para poder manejar los errores
+- Quiero que toda ApplicationException ( la clase que creé para lanzar un error) sea un error del lado del cliente
+- Por lo tanto debería responderle con un BadRequest, pero no puedo hacer un badRequest desde el controlador
+- Lo que hago es crear un controlador base en /common/controllers/base.controller.ts
+- Va a ser una clase abstracta que la van a heredar todos los controladores
+- Le pongo que error es de tipo any porque puede ser de tipo ApplicationException o de tipo Error (de new Error())
+
+~~~js
+import { Response } from "express";
+import { ApplicationException } from "../exception/application.exception";
+
+export abstract class BaseController{
+
+    handleException(err: any, res: Response){
+        if(err instanceof ApplicationException){
+            res.status(400)
+            res.send()
+        }else{
+            throw new Error()
+        }
+    }
+}
+~~~
+
+- Hago que el controlador herede de esta clase Abstracta
+- Tengo que usar super para que herede
+- Uso un try y un catch para atrapar el error
+- Le paso el error y la response
+
+~~~js
+import { Request, Response } from "express";
+import { route, GET, POST, PUT, DELETE } from "awilix-express";
+import { SubscriptionService } from "../services/subscription.service";
+import { SubscriptionCreateDto, SubscriptionUpdateDto } from "../dtos/subscription.dtos";
+import { BaseController } from "../common/controllers/base.controller";
+
+
+@route('/subscriptions')
+export class SubscriptionController extends BaseController{
+    //inyecto como dependencia el servicio
+    constructor(private readonly subscriptionService:SubscriptionService){
+        super()
+    }
+
+    @GET()
+    public async all(req:Request, res: Response) {
+
+        try {
+            res.send(
+               await this.subscriptionService.all()
+            )
+        } catch (error) {
+            this.handleException(error, res)
+        }
+    }
+
+    @route(':id')
+    @GET()
+    public async find(req: Request, res: Response){
+        const id = req.params.id
+
+        try {
+            res.send(
+                await this.subscriptionService.find(+id)
+            )
+            
+        } catch (error) {
+            this.handleException(error, res)
+        }
+    }
+
+    @POST()
+    public async store(req: Request, res: Response){
+        
+        try {
+            await this.subscriptionService.store({
+                user_id: req.body.user_id,
+                code: req.body.code,
+                amount: req.body.amount,
+                cron: req.body.cron
+            } as SubscriptionCreateDto)
+    
+            res.send() //status 200
+            
+        } catch (error) {
+            this.handleException(error, res)
+        }
+    }
+
+    @route(':id')
+    @PUT()
+    public async update(req: Request, res: Response){
+        const id = req.params.id
+
+        try {
+            await this.subscriptionService.update(+id, {
+                code: req.body.code,
+                amount: req.body.amount,
+                cron: req.body.cron
+            } as SubscriptionUpdateDto)
+            
+        } catch (error) {
+            this.handleException(error, res)
+        }
+
+    }
+
+    @route(':id')
+    @DELETE()
+    public async remove(req: Request, res: Response){
+
+        const id= req.params.id
+        
+        try {
+            await this.subscriptionService.remove(+id)
+            
+        } catch (error) {
+            this.handleException(error, res)
+        }
+    }
+}
+~~~
+
+- Minuto 3:21
