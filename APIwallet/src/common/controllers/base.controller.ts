@@ -6,9 +6,10 @@ export abstract class BaseController{
     handleException(err: any, res: Response){
         if(err instanceof ApplicationException){
             res.status(400)
-            res.send()
+            res.send(err.message)
+            
         }else{
-            throw new Error()
+            throw new Error(err)
         }
     }
 }

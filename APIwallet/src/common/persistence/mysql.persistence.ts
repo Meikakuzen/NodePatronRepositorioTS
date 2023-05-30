@@ -1,12 +1,14 @@
 import {createPool} from 'mysql2/promise'
+import dotenv from 'dotenv'
 
 
 
 export default createPool({
-    host: process.env.db_mysql_host,
-    user: process.env.db_mysql_user,
-    password: process.env.db_mysql_password,
-    database: process.env.db_mysql_database,
+    host: "localhost",
+    user: "root",
+    password: "root",
+    database: "kodotiwallet",
     decimalNumbers: true
 })
+
 

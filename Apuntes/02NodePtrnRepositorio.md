@@ -60,7 +60,7 @@ db_mysql_database=kodotiwallet
 
 ~~~js
 CREATE TABLE `kodotiwallet`.`wallet_subscription` (
-  `id` INT NOT NULL,
+  `id` INT NOT NULL AUTO INCREMENT, //y auto increment!!
   `user_id` INT NOT NULL,
   `code` VARCHAR(45) NULL,
   `amount` DECIMAL NULL,
@@ -408,7 +408,7 @@ export interface SubscriptionUpdateDto{
 ~~~js
     public async findByUserAndCode(user_id: Number, code: string): Promise<Subscription | null>{
         const [rows]: any[] = await connector.execute(
-            'SELECT FROM wallet_subscription WHERE id = ? AND code= ?', //pongo interrogación para evitar inyección de SQL, añado code
+            'SELECT * FROM wallet_subscription WHERE user_id = ? AND code= ?', //pongo interrogación para evitar inyección de SQL, añado code
             
             
             [user_id, code]
@@ -614,7 +614,7 @@ export class SubscriptionController{
         )
     }
 
-    @route(':id')
+    @route('/:id')
     @GET()
     public async find(req: Request, res: Response){
         const id = req.params.id
@@ -667,7 +667,7 @@ export class SubscriptionController{
         )
     }
 
-    @route(':id')
+    @route('/:id')
     @GET()
     public async find(req: Request, res: Response){
         const id = req.params.id
@@ -690,7 +690,7 @@ export class SubscriptionController{
         res.send() //status 200
     }
 
-    @route(':id')
+    @route('/:id')
     @PUT()
     public async update(req: Request, res: Response){
         const id = req.params.id
@@ -703,7 +703,7 @@ export class SubscriptionController{
 
     }
 
-    @route(':id')
+    @route('/:id')
     @DELETE()
     public async remove(req: Request, res: Response){
 
@@ -773,7 +773,7 @@ export class SubscriptionController extends BaseController{
         }
     }
 
-    @route(':id')
+    @route('/:id')
     @GET()
     public async find(req: Request, res: Response){
         const id = req.params.id
@@ -806,7 +806,7 @@ export class SubscriptionController extends BaseController{
         }
     }
 
-    @route(':id')
+    @route('/:id')
     @PUT()
     public async update(req: Request, res: Response){
         const id = req.params.id
@@ -824,7 +824,7 @@ export class SubscriptionController extends BaseController{
 
     }
 
-    @route(':id')
+    @route('/:id')
     @DELETE()
     public async remove(req: Request, res: Response){
 
@@ -840,4 +840,69 @@ export class SubscriptionController extends BaseController{
 }
 ~~~
 
-- Minuto 3:21
+- RESUMEN BREVE:
+  - En el repositorio tenemos las consultas SQL. Implementa la interfaz
+  - En el servicio inyectamos en el constructor el repositorio, previamente registrado en el container
+    - El servicio no necesita interfaz. Es dónde establezco la lógica de negocio usando el repositorio (las consultas)
+  - Registramos el servicio en el container, y lo inyectamos en el controlador
+    - En el controlador tengo las rutas y los métodos del CRUD. Simplemente llamo al servicio y manejo los errores
+-----
+
+## REFACTORING
+
+- El método GET para buscar uno en concreto (find) cambia a esto
+- Verifico primero que existe, y si no mando un 400
+
+~~~js
+    @route('/:id')
+    @GET()
+    public async find(req: Request, res: Response){
+        
+        try {
+            const id = req.params.id
+            const result =  await this.subscriptionService.find(+id)
+            
+            if(result){
+                res.send(result)
+
+            }else{
+                res.status(404)
+                res.send()
+            }
+        } catch (error) {
+            this.handleException(error, res)
+        }
+    }
+~~~
+- El método POST (store) también necesita refactorización
+- Express no está configurado para trabajar con JSON
+- Añado esta linea al servidor, en app.ts
+
+> app.use(express.json())
+
+- Modifico base.controller para poder leer el mensaje de error
+- base.controller
+
+~~~js
+import { Response } from "express";
+import { ApplicationException } from "../exception/application.exception";
+
+export abstract class BaseController{
+
+    handleException(err: any, res: Response){
+        if(err instanceof ApplicationException){
+            res.status(400)
+            res.send(err.message)
+            
+        }else{
+            throw new Error(err)
+        }
+    }
+}
+~~~
+
+- Para arreglar BUG de MYSQLWorkbench Region/Administrativo/Cambiar Configuración del sistema/ habilitar checkbox UTF-8
+- Reiniciar
+- El problema está en que no están disponibles las variables de entorno en el archivo persistence, por lo que algo pasa en la configuración en app.ts con dotenv.config
+- Tengo problemas con import.meta.url y el __dirname, por lo que no estan disponibles las variables de entorno en /config/mysql.persistence
+- **Pongo las variables de entorno en duro** 
