@@ -7,14 +7,14 @@ export class SubscriptionMySQLRepository implements SubscriptionRepository {
 
     public async all(): Promise<Subscription[]>{
         const [rows] = await connector.execute(
-            'SELECT FROM wallet_subscription ORDER BY id DESC' 
+            'SELECT * FROM wallet_subscription ORDER BY id DESC' 
         )
 
         return rows as Subscription[]
     }
     public async find(id: Number): Promise<Subscription | null>{
         const [rows]: any[] = await connector.execute(
-            'SELECT FROM wallet_subscription WHERE id = ?', //pongo interrogación para evitar inyección de SQL
+            'SELECT * FROM wallet_subscription WHERE id = ?', //pongo interrogación para evitar inyección de SQL
             
             //va a traer un array igual, pero debería devolver una sola fila
             [id]

@@ -6,8 +6,8 @@ export interface SubscriptionCreateDto{
 }
 
 export interface SubscriptionUpdateDto{
-    code: string
+    code: string 
     //según las reglas de negocio que aplico el user_id no lo necesito en update
-    amount: number
-    cron: string
+    amount: number 
+    cron: string 
 }

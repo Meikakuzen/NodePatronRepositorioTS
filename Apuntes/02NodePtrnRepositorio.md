@@ -105,7 +105,7 @@ export class SubscriptionRepository{
     public async all(): Promise<Subscription[]>{
 
         const [rows] = await connector.execute(
-            'SELECT FROM wallet_subscription ORDER BY id DESC' 
+            'SELECT * FROM wallet_subscription ORDER BY id DESC' 
         )
 
             //Si trabajara con clases en lugar de una interfaz aquí tendría que instanciar la clase Subscription
@@ -132,14 +132,14 @@ export class SubscriptionRepository{
 
     public async all(): Promise<Subscription[]>{
         const [rows] = await connector.execute(
-            'SELECT FROM wallet_subscription ORDER BY id DESC' 
+            'SELECT * FROM wallet_subscription ORDER BY id DESC' 
         )
 
         return rows as Subscription[]
     }
     public async find(id: Number): Promise<Subscription | null>{
         const [rows]: any[] = await connector.execute(
-            'SELECT FROM wallet_subscription WHERE id = ?', //pongo interrogación para evitar inyección de SQL
+            'SELECT * FROM wallet_subscription WHERE id = ?', //pongo interrogación para evitar inyección de SQL
             
             //va a traer un array igual, pero debería devolver una sola fila
             [id]
@@ -170,14 +170,14 @@ export class SubscriptionRepository{
 
     public async all(): Promise<Subscription[]>{
         const [rows] = await connector.execute(
-            'SELECT FROM wallet_subscription ORDER BY id DESC' 
+            'SELECT * FROM wallet_subscription ORDER BY id DESC' 
         )
 
         return rows as Subscription[]
     }
     public async find(id: Number): Promise<Subscription | null>{
         const [rows]: any[] = await connector.execute(
-            'SELECT FROM wallet_subscription WHERE id = ?', //pongo interrogación para evitar inyección de SQL
+            'SELECT * FROM wallet_subscription WHERE id = ?', //pongo interrogación para evitar inyección de SQL
             
             //va a traer un array igual, pero debería devolver una sola fila
             [id]
@@ -257,14 +257,14 @@ export class SubscriptionMySQLRepository implements SubscriptionRepository {
 
     public async all(): Promise<Subscription[]>{
         const [rows] = await connector.execute(
-            'SELECT FROM wallet_subscription ORDER BY id DESC' 
+            'SELECT * FROM wallet_subscription ORDER BY id DESC' 
         )
 
         return rows as Subscription[]
     }
     public async find(id: Number): Promise<Subscription | null>{
         const [rows]: any[] = await connector.execute(
-            'SELECT FROM wallet_subscription WHERE id = ?', //pongo interrogación para evitar inyección de SQL
+            'SELECT * FROM wallet_subscription WHERE id = ?', //pongo interrogación para evitar inyección de SQL
             
             //va a traer un array igual, pero debería devolver una sola fila
             [id]//le paso el id
@@ -395,7 +395,7 @@ export interface SubscriptionCreateDto{
 }
 
 export interface SubscriptionUpdateDto{
-    code: string
+    code: string 
     //según las reglas de negocio que aplico el user_id no lo necesito en update
     amount: number
     cron: string
@@ -817,6 +817,8 @@ export class SubscriptionController extends BaseController{
                 amount: req.body.amount,
                 cron: req.body.cron
             } as SubscriptionUpdateDto)
+
+            res.send()
             
         } catch (error) {
             this.handleException(error, res)
@@ -832,7 +834,7 @@ export class SubscriptionController extends BaseController{
         
         try {
             await this.subscriptionService.remove(+id)
-            
+            res.send()
         } catch (error) {
             this.handleException(error, res)
         }
@@ -906,3 +908,4 @@ export abstract class BaseController{
 - El problema está en que no están disponibles las variables de entorno en el archivo persistence, por lo que algo pasa en la configuración en app.ts con dotenv.config
 - Tengo problemas con import.meta.url y el __dirname, por lo que no estan disponibles las variables de entorno en /config/mysql.persistence
 - **Pongo las variables de entorno en duro** 
+- 

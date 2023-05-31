@@ -73,6 +73,8 @@ export class SubscriptionController extends BaseController{
                 amount: req.body.amount,
                 cron: req.body.cron
             } as SubscriptionUpdateDto)
+
+            res.send()
             
         } catch (error) {
             this.handleException(error, res)
@@ -88,6 +90,7 @@ export class SubscriptionController extends BaseController{
         
         try {
             await this.subscriptionService.remove(+id)
+            res.send()
             
         } catch (error) {
             this.handleException(error, res)
