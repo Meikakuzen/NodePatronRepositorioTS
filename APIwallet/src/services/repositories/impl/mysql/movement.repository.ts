@@ -32,7 +32,6 @@ export class MovementMySQLRepository implements MovementRepository{
 
         await connector.execute(
             'INSERT INTO wallet_movement(user_id, type, amount, created_at) VALUES(?,?,?,?)',
-            //escapo los parámetros
             [entry.user_id, entry.type, entry.amount, now]  
         )
     }

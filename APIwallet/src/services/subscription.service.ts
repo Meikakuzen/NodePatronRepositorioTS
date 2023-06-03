@@ -18,13 +18,12 @@ export class SubscriptionService{
         }
 
         public async store(entry: SubscriptionCreateDto): Promise<void>{
-           //el user_id y el code son únicos, me sirven para vaidar si existe
-           //uso el método que he creado en subscription.repository
+        
 
            const originalEntry = await this.subscriptionRepository.findByUserAndCode(entry.user_id, entry.code)
 
            if(!originalEntry){
-           await this.subscriptionRepository.store(entry as Subscription) //lo transformo al tipo Subscription
+           await this.subscriptionRepository.store(entry as Subscription)
            }else{
                 throw new ApplicationException("User subscription already exists")
            }

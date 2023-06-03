@@ -329,7 +329,7 @@ export interface MovementCreateDto{
 import { MovementType } from "../common/enums/movement-types";
 import { ApplicationException } from "../common/exception/application.exception";
 import { MovementCreateDto } from "../dtos/movement.dtos";
-import { BalanceRepository } from "./repositories/balance.repository";
+import { BalanceMySQLRepository} from "./repositories/impl/mysql/balance.repository";
 import { Balance } from "./repositories/domain/balance";
 import { Movement } from "./repositories/domain/movement";
 import { MovementRepository } from "./repositories/movement.repository";
@@ -337,7 +337,7 @@ import { MovementRepository } from "./repositories/movement.repository";
 export class MovementService{
     constructor(
         private readonly movementRepository: MovementRepository,
-        private readonly balanceRepository: BalanceRepository
+        private readonly balanceRepository: BalanceMySQLRepository
     ){}
 
     public async all(): Promise<Movement[]>{
@@ -369,7 +369,7 @@ export class MovementService{
         if(!balance){
             //si no tengo un balance pero hago un ingreso de 200 tengo un balance de 200
             //creo el balance
-           await this.balanceRepository.store({
+            await this.balanceRepository.store({
                 amount: entry.amount,
                 user_id: entry.user_id
             } as Balance)
@@ -388,6 +388,7 @@ export class MovementService{
             balance.amount -= entry.amount
             await this.balanceRepository.update(balance)
         }
+        await this.balanceRepository.update(balance)
         await this.movementRepository.store(entry as Movement)
 
     } 

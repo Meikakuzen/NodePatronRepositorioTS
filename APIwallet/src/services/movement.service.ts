@@ -21,37 +21,33 @@ export class MovementService{
     }
 
     public async store(entry: MovementCreateDto): Promise<void>{
-        //cuando quiere crear un movimiento tiene dos tipos: un ingreso o un pago
-        //necesito el balanceRepository para que cuando haga un movimiento se actualice el balance
-        
-        //traigo el balance actual
+   
         const balance = await this.balanceRepository.findByUserAndCode(entry.user_id)
 
-        //según sea del tipo income u outcome del enum de MovementType será una lógica u otra
+       
         if(entry.type === MovementType.income){
             await this.income(entry, balance)
         }else if(entry.type === MovementType.outcome){
             await this.outcome(entry, balance)
         }else{
-            throw new ApplicationException('Invalid Movement Type supplied')//error de tipo Application porque es un error del cliente
+            throw new ApplicationException('Invalid Movement Type supplied')
         }
 
     }
     private async income(entry: MovementCreateDto, balance: Balance | null){
         if(!balance){
-            //si no tengo un balance pero hago un ingreso de 200 tengo un balance de 200
-            //creo el balance
+        
             await this.balanceRepository.store({
                 amount: entry.amount,
                 user_id: entry.user_id
             } as Balance)
         }else{
-            balance.amount += entry.amount //en el caso de que exista el sumo el amount y hago el update
+            balance.amount += entry.amount 
             await this.balanceRepository.update(balance)
         }
-        //registro el movimiento
-        await this.movementRepository.store(entry as Movement) //el MovementCreateDto tiene los 3 campos que calzan con Movement
-                                                            //user_id, type, amount, el resto viene de findUserByUserAndCode
+       
+        await this.movementRepository.store(entry as Movement) 
+                                                           
     } 
     private async outcome(entry: MovementCreateDto, balance: Balance | null){
         if(!balance || balance.amount < entry.amount){

@@ -7,7 +7,7 @@ import { MovementCreateDto } from '../dtos/movement.dtos';
 @route('/movement')
 export class MovementController extends BaseController{
     constructor(private readonly movementService: MovementService){
-        super() //llamo al super porque extiendo de una clase abstracta para lanzar los errores (BaseController)
+        super()
     }
 
     @GET()
@@ -51,7 +51,7 @@ export class MovementController extends BaseController{
                 type: req.body.type
             } as MovementCreateDto)
     
-            res.send() //status 200
+            res.send() 
             
         } catch (error) {
             this.handleException(error, res)

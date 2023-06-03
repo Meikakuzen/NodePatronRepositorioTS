@@ -55,7 +55,7 @@ export class SubscriptionController extends BaseController{
                 cron: req.body.cron
             } as SubscriptionCreateDto)
     
-            res.send() //status 200
+            res.send() 
             
         } catch (error) {
             this.handleException(error, res)
