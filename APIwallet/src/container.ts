@@ -7,7 +7,10 @@ import { SubscriptionService } from './services/subscription.service';
 import { MovementMySQLRepository } from './services/repositories/impl/mysql/movement.repository';
 import { MovementService } from './services/movement.service';
 import { BalanceMySQLRepository } from './services/repositories/impl/mysql/balance.repository';
-
+/*import { SubscriptionMSSQLRepository } from './services/repositories/impl/mssql/subscription.repository';
+import { MovementMSSQLRepository } from './services/repositories/impl/mssql/movement.repository';
+import { BalanceMSSQLRepository } from './services/repositories/impl/mssql/balance.repository';
+*/
 
 export default (app: express.Application)=>{
     
@@ -15,12 +18,15 @@ export default (app: express.Application)=>{
         injectionMode: 'CLASSIC'
     })
     
-    //aquí registro mis dependencias. Uso asClass para indicarle que es una clase. Uso .scoped() al final
+   
     container.register({
         //repositories
         subscriptionRepository: asClass(SubscriptionMySQLRepository).scoped(),
         movementRepository: asClass(MovementMySQLRepository).scoped(),
-        balanceRepository: asClass(BalanceMySQLRepository).scoped(),
+        balanceRepository: asClass(BalanceMySQLRepository).scoped(), 
+        /*subscriptionRepository: asClass(SubscriptionMSSQLRepository).scoped(),
+        movementRepository: asClass(MovementMSSQLRepository).scoped(),
+        balanceRepository: asClass(BalanceMSSQLRepository).scoped(),*/
 
         //services
         testService: asClass(TestService).scoped(),

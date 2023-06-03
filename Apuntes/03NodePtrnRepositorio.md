@@ -379,7 +379,7 @@ export class MovementService{
         }
         //registro el movimiento
         await this.movementRepository.store(entry as Movement) //el MovementCreateDto tiene los 3 campos que calzan con Movement
-                                                            //user_id, type, amount, el resto viene de findUserByUserAndCode
+                                                            
     } 
     private async outcome(entry: MovementCreateDto, balance: Balance | null){
         if(!balance || balance.amount < entry.amount){
