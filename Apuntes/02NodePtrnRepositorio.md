@@ -92,7 +92,7 @@ export interface Subscription{
   - Como hice un export default puedo llamarlo como quiera
 - execute (que es asíncrono) me retorna un array, y dentro del array retorna otros arrays
     - Dónde están las filas encontradas en la base de datos va a ser en el índice 0
-    - A través de la desestructuración de arrays de JavaScript vamos a acceder al índice 0
+    - A través de la desestructuración de arrays vamos a acceder al índice 0 con rows entre corchetes
 - Hago un casteo de rows y le digo que serán un array del tipo de la interfaz
 - Cómo trabajo con una promesa, el retorno del método all será una  promesa de tipo Subscription[] 
 

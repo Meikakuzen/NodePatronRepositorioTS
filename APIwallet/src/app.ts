@@ -2,7 +2,6 @@ import express from 'express'
 import dotenv from 'dotenv'
 import loadContainer  from './container'
 import { loadControllers } from 'awilix-express'
-import path from 'path'
 /*import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -14,8 +13,8 @@ process.env.NODE_ENV = process.env.NODE_ENV || 'development'
 process.env.APP_ENV = process.env.APP_ENV || 'development'
 
 dotenv.config({
-    path: `${__dirname}/../config/${process.env.APP_ENV}.env`
-})
+    path: `${__dirname}/../config/${process.env.APP_ENV}.env` //no funciona, a veces detecta el __dirname, a veces no
+})                                                            //he colocado las variables de entorno en duro ya que no las encuentra 
 
 
 
