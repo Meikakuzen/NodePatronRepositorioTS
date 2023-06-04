@@ -18,7 +18,18 @@ export class CheckController{
     @route('/test')
     @GET()
     public test(req: Request, res:Response): void{
+        
         res.send(this.testService.get())
+    }
+
+    @route('/user-payload')
+    @GET()
+    public userPayload(req: Request, res: Response): void{
+        //Typescript dice que req.user no existe porque está agregada dinamicamente por el middleware de express-jwt
+        //Una opción es habilitar que Typescript acepte valores any, otra es castearlo
+            
+            res.send((req as any).auth) 
+   
     }
 
 }
